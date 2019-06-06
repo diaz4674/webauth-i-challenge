@@ -77,5 +77,18 @@ router.get('/api/users', authorize, (req, res) => {
         .catch(err => res.send(err))
 })
 
+router.get('/api/logout', (req,res) => {
+    if(req.session && req.session.user) {
+        req.session.destroy(err => {
+            if(err){
+                res.json({message: 'could not log you out.'})
+            } else {
+                res.status(200).json({message:"Successfully logged out."})
+            }
+        })
+    } else {
+        res.status(200).json({message: 'you were never here.'})
+    }
+})
 
 module.exports = router;
