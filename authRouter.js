@@ -1,3 +1,4 @@
+const express = require('express');
 const knex = require('knex');
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
@@ -5,27 +6,37 @@ const session = require('express-session')
 const dbConfig = require('./knexfile.js')
 const db = knex(dbConfig.development);
 const Users = require('./users/users-model.js')
+const SessionStore = require('connect-session-knex')(session);
+const restricted = require('./restricted-middleware');
 
 const sessionConfig = {
     //Cookie boilerplating
     name: 'Batman', 
     secret: 'keep it secret, keep it safe',
     cookie: {
-        maxAge: 1000 * 30,
+        maxAge: 60 * 60 * 1000,
         secure: false, //true in production,
         httpOnly: true,
     },
     resave: false, 
     saveUninitialized: false, //GDPR laws against setting cookies automatically
+    store: new SessionStore({
+        knex: require('./data/dbConfig'),
+        tablename: 'sessions',
+        sidfieldname: 'sid',
+        createtable: true,
+        clearInterval: 60 * 60 * 1000,
+      }),
 }
 
 router.use(session(sessionConfig))
+router.use(express.json())
 
 router.get('/', (req, res) => {
     res.send("Let's git'er done!")
 })
 
-router.post('/api/register', (req, res) => {
+router.post('/api/register',  (req, res) => {
     let user = req.body;
 
         const hash = bcrypt.hashSync(user.password, 12);
@@ -52,24 +63,12 @@ router.post('/api/login', (req, res) => {
                 res.status(401).json({message: 'Invalid creds'})
             }
         })
+        .catch(error => {
+            res.status(500).json(error);
+          });
 })
 
-function authorize(req, res, next) {
-    let {username, password} = req.body;
-    if(!username && !password){
-        return res.status(401).json({message: 'Invalid Street Creds'})
-    }
-
-    if(req.session && req.session.user){
-            next()
-        } else {
-            res.status(401).json({message: 'Thou shall not pass!'})
-    }
-        
-
-}
-
-router.get('/api/users', authorize, (req, res) => {
+router.get('/api/users', restricted, (req, res) => {
     Users.find()
         .then(users => {
             res.json(users);

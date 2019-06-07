@@ -6,5 +6,4 @@ module.exports = {
             filename: './data/auth.db3',
         }
     },
-
 }
